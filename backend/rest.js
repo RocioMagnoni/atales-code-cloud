@@ -38,10 +38,38 @@ router.post('/reset-password', async (req, res) => {
     // Enviar correo con el enlace de restablecimiento
     const resetLink = `http://localhost:3000/reset/reset-password/${token}`;
     const msg = {
-      to: email,
-      from: process.env.EMAIL_FROM || 'atalmendoza03@gmail.com',
-      subject: 'Restablecimiento de contraseña',
-      text: `Hemos recibido una solicitud para restablecer tu contraseña. Haz clic en el siguiente enlace para restablecerla: ${resetLink}`,
+    to: email,
+    from: process.env.EMAIL_FROM,
+    subject: 'Restablecimiento de Contraseña - Atal',
+    html: `
+            <div style="font-family: 'Arial', sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e63946; border-radius: 8px;">
+            <div style="background-color: #e63946; padding: 20px; text-align: center;">
+                <h1 style="color: white; margin: 0;">ATAL</h1>
+            </div>
+            
+            <div style="padding: 20px;">
+                <h2 style="color: #e63946;">Restablecer Contraseña</h2>
+                <p>Recibiste este correo porque solicitaste un restablecimiento de contraseña.</p>
+                
+                <a href="${resetLink}" 
+                style="display: inline-block; background-color: #e63946; color: white; 
+                        padding: 12px 24px; text-decoration: none; border-radius: 4px; 
+                        font-weight: bold; margin: 15px 0;">
+                Restablecer Ahora
+                </a>
+                
+                <p style="font-size: 12px; color: #666;">
+                Si no solicitaste este cambio, por favor ignora este mensaje.<br>
+                El enlace expirará en 1 hora.
+                </p>
+            </div>
+            
+            <div style="background-color: #f5f5f5; padding: 10px; text-align: center; 
+                        border-top: 1px solid #ddd; font-size: 12px; color: #777;">
+                © ${new Date().getFullYear()} Atal. Todos los derechos reservados.
+            </div>
+            </div>
+        `
     };
 
     await sgMail.send(msg);

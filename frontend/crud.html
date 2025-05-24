@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CRUD de Productos - Atales</title>
     <link rel="stylesheet" href="css/styles.css">
+    <style>
+        .sucursal-header {
+            background-color: #e63946;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .form-grupo {
+            display: grid;
+            grid-template-columns: 1fr 1fr 120px 150px auto;
+            gap: 10px;
+            align-items: center;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -15,20 +35,33 @@
     </header>
     
     <main>
-        <h2>Gestión de Productos</h2>
+        <!-- Encabezado dinámico -->
+        <div class="sucursal-header" id="sucursal-header">
+            <h2>Gestión de Productos</h2>
+            <p id="sucursal-info">Cargando información de sucursal...</p>
+        </div>
         
-        <!-- Botón para volver al índice -->
+        <!-- Botón para volver -->
         <div class="botones">
+            <a href="ubicacion.html" class="boton">Volver a Sucursales</a>
             <a href="index.html" class="boton">Volver al Inicio</a>
         </div>
         
-        <!-- Formulario para agregar un producto -->
+        <!-- Formulario para agregar producto -->
         <form id="producto-form" class="formulario">
             <h3>Agregar Nuevo Producto</h3>
             <div class="form-grupo">
-                <input type="text" id="nombre" placeholder="Nombre del producto" required>
-                <input type="number" id="precio" placeholder="Precio del producto" step="0.01" min="0" required>
-                <button type="submit" class="boton">Agregar Producto</button>
+                <input type="text" id="nombre" placeholder="Nombre" required>
+                <input type="number" id="precio" placeholder="Precio" step="0.01" min="0" required>
+                <input type="number" id="cantidad" placeholder="Cantidad" min="0" value="0" required>
+                <select id="categoria" required>
+                    <option value="General">General</option>
+                    <option value="Electrónica">Electrónica</option>
+                    <option value="Alimentos">Alimentos</option>
+                    <option value="Limpieza">Limpieza</option>
+                    <option value="Bebidas">Bebidas</option>
+                </select>
+                <button type="submit" class="boton">Agregar</button>
             </div>
         </form>
 
@@ -40,6 +73,8 @@
                         <th>ID</th>
                         <th>Nombre</th>
                         <th>Precio</th>
+                        <th>Cantidad</th>
+                        <th>Categoría</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -51,6 +86,27 @@
     <footer>
         <p>&copy; 2024 Atales. Todos los derechos reservados.</p>
     </footer>
+
+    <script>
+        // Configuración global única
+        if (!window.ATALES_CONFIG) {
+            window.ATALES_CONFIG = {
+                urlParams: new URLSearchParams(window.location.search),
+                sucursalId: new URLSearchParams(window.location.search).get('sucursal') || '1',
+                sucursales: {
+                    '1': { nombre: 'ATAL Centro', direccion: 'Paso de los Andes 1794' },
+                    '2': { nombre: 'ATAL Godoy Cruz', direccion: 'Talcahuano 2845' },
+                    '3': { nombre: 'ATAL Guaymallén', direccion: 'Elpidio González 2250' }
+                }
+            };
+        }
+
+        // Mostrar información de la sucursal
+        document.getElementById('sucursal-info').textContent = 
+            `${window.ATALES_CONFIG.sucursales[window.ATALES_CONFIG.sucursalId]?.nombre || 'Sucursal '+window.ATALES_CONFIG.sucursalId} - ${window.ATALES_CONFIG.sucursales[window.ATALES_CONFIG.sucursalId]?.direccion || ''}`;
+        
+        console.log('Configuración inicializada:', window.ATALES_CONFIG);
+    </script>
 
     <script src="js/script.js"></script>
     <script src="js/auth.js"></script>

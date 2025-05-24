@@ -1,123 +1,258 @@
-const apiUrl = 'http://localhost:3000/api/productos';
-
-document.addEventListener('DOMContentLoaded', () => {
-  // Verificar si estamos en la página 'crud.html'
-  if (document.location.pathname.indexOf("crud.html") !== -1) {
-    obtenerProductos(); // Llamar la función para cargar los productos
-  }
-});
-
-// Obtener productos
-const obtenerProductos = async () => {
-  // Verificar si el elemento con id 'productos-lista' existe
-  const tbody = document.getElementById('productos-lista');
-  if (!tbody) {
-    console.log('El elemento productos-lista no se encontró.');
-    return; // Si no se encuentra el elemento, salimos de la función
-  }
-
-  try {
-    const res = await fetch(apiUrl);
-    const productos = await res.json();
-
-    // Limpiar la tabla antes de insertar los productos
-    tbody.innerHTML = '';
-
-    // Insertar los productos en la tabla
-    productos.forEach((producto) => {
-      tbody.innerHTML += `
-        <tr id="producto-${producto.id}">
-          <td>${producto.id}</td>
-          <td>
-            <input type="text" value="${producto.nombre}" id="nombre-${producto.id}" disabled />
-          </td>
-          <td>
-            <input type="number" value="${producto.precio}" id="precio-${producto.id}" disabled />
-          </td>
-          <td>
-            <button onclick="eliminarProducto(${producto.id})">Eliminar</button>
-            <button onclick="habilitarEdicion(${producto.id})">Actualizar</button>
-            <button id="guardar-${producto.id}" style="display:none;" onclick="guardarCambios(${producto.id})">Guardar Cambios</button>
-          </td>
-        </tr>
-      `;
-    });
-  } catch (error) {
-    console.error('Error al obtener los productos:', error);
-  }
+// Configuración compartida
+const config = window.ATALES_CONFIG || {
+    sucursalId: '1',
+    sucursales: {
+        '1': { nombre: 'ATAL Centro' },
+        '2': { nombre: 'ATAL Godoy Cruz' },
+        '3': { nombre: 'ATAL Guaymallén' }
+    }
 };
 
-// Agregar producto
-const formulario = document.getElementById('producto-form');
-if (formulario) {
-  formulario.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nombre = document.getElementById('nombre').value;
-    const precio = document.getElementById('precio').value;
+const apiUrl = `http://localhost:3000/api/productos?sucursal=${config.sucursalId}`;
+console.log('API configurada:', apiUrl);
+
+// Mostrar información de la sucursal actual
+document.addEventListener('DOMContentLoaded', () => {
+    const sucursalInfo = document.getElementById('sucursal-info');
+    if (sucursalInfo) {
+        sucursalInfo.textContent = `Sucursal actual: ${config.sucursales[config.sucursalId]?.nombre || `Sucursal ${config.sucursalId}`}`;
+    }
+
+    if (document.location.pathname.includes("crud.html")) {
+        obtenerProductos();
+    }
+
+    // Lógica para el botón de cerrar sesión
+    const logoutButton = document.getElementById('logout-btn');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', function () {
+            localStorage.removeItem('token'); // Eliminar el token del localStorage
+            alert('Has cerrado sesión correctamente');
+            window.location.href = 'login.html'; // Redirigir al login
+        });
+    }
+});
+
+const obtenerProductos = async () => {
+    const tbody = document.getElementById('productos-lista');
+    if (!tbody) return;
 
     try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}` 
-        },
-        body: JSON.stringify({ nombre, precio }),
-      });
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Por favor, inicia sesión para acceder a esta página.');
+            window.location.href = 'login.html';
+            return;
+        }
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || 'Error al agregar producto');
-      
-      obtenerProductos();
-      e.target.reset();
+        const res = await fetch(apiUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(text || res.statusText);
+        }
+
+        const productos = await res.json();
+        console.log('Productos obtenidos:', productos);
+
+        if (productos.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6">No hay productos para mostrar</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = '';
+        productos.forEach(prod => {
+            tbody.innerHTML += `
+                <tr>
+                    <td><input type="text" id="nombre-${prod.id}" value="${prod.nombre}" disabled></td>
+                    <td><input type="number" id="precio-${prod.id}" value="${prod.precio}" disabled></td>
+                    <td><input type="number" id="cantidad-${prod.id}" value="${prod.cantidad}" disabled></td>
+                    <td>
+                      <select id="categoria-${prod.id}" disabled>
+                        <option value="General" ${prod.categoria === 'General' ? 'selected' : ''}>General</option>
+                        <option value="Electrónica" ${prod.categoria === 'Electrónica' ? 'selected' : ''}>Electrónica</option>
+                        <option value="Alimentos" ${prod.categoria === 'Alimentos' ? 'selected' : ''}>Alimentos</option>
+                        <option value="Limpieza" ${prod.categoria === 'Limpieza' ? 'selected' : ''}>Limpieza</option>
+                        <option value="Bebidas" ${prod.categoria === 'Bebidas' ? 'selected' : ''}>Bebidas</option>
+                      </select>
+                    </td>
+                    <td>
+                      <button onclick="habilitarEdicion(${prod.id})">Editar</button>
+                      <button id="guardar-${prod.id}" onclick="guardarCambios(${prod.id})" style="display:none;">Guardar</button>
+                      <button onclick="eliminarProducto(${prod.id})">Eliminar</button>
+                    </td>
+                </tr>
+            `;
+        });
     } catch (error) {
-      alert(error.message);
+        console.error('Error al obtener productos:', error);
+        tbody.innerHTML = `<tr><td colspan="6">Error al cargar productos: ${error.message}</td></tr>`;
     }
-  });
-}
+};
+
+
+// Agregar producto
+const agregarProducto = async (nombre, precio, cantidad, categoria) => {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Por favor, inicia sesión para agregar productos.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        console.log('Intentando agregar producto:', { nombre, precio, cantidad, categoria });
+
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                nombre,
+                precio: parseFloat(precio),
+                cantidad: parseInt(cantidad),
+                categoria,
+                sucursal_id: parseInt(config.sucursalId)
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || response.statusText);
+        }
+
+        const nuevoProducto = await response.json();
+        console.log('Producto agregado:', nuevoProducto);
+        return nuevoProducto;
+    } catch (error) {
+        console.error('Error al agregar producto:', error);
+        throw error;
+    }
+};
 
 // Eliminar producto
 const eliminarProducto = async (id) => {
-  try {
-    const response = await fetch(`${apiUrl}/${id}`, { 
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      }
-    });
-    if (!response.ok) throw new Error('Error al eliminar');
-    obtenerProductos();
-  } catch (error) {
-    alert(error.message);
-  }
-};
+    if (!confirm('¿Estás seguro de eliminar este producto?')) return;
 
-// Habilitar edición
-const habilitarEdicion = (id) => {
-  document.getElementById(`nombre-${id}`).disabled = false;
-  document.getElementById(`precio-${id}`).disabled = false;
-  document.getElementById(`guardar-${id}`).style.display = 'inline'; // Mostrar botón de guardar
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Por favor, inicia sesión para eliminar productos.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        const urlEliminar = `http://localhost:3000/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const response = await fetch(urlEliminar, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || 'Error al eliminar');
+        }
+
+        alert('Producto eliminado correctamente');
+        obtenerProductos();
+    } catch (error) {
+        alert(`Error al eliminar producto: ${error.message}`);
+        console.error('Error al eliminar producto:', error);
+    }
 };
 
 // Guardar cambios
 const guardarCambios = async (id) => {
-  const nombre = document.getElementById(`nombre-${id}`).value;
-  const precio = document.getElementById(`precio-${id}`).value;
+    const nombre = document.getElementById(`nombre-${id}`).value;
+    const precio = document.getElementById(`precio-${id}`).value;
+    const cantidad = document.getElementById(`cantidad-${id}`).value;
+    const categoria = document.getElementById(`categoria-${id}`).value;
 
-  await fetch(`${apiUrl}/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nombre, precio }),
-  });
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Por favor, inicia sesión para guardar cambios.');
+            window.location.href = 'login.html';
+            return;
+        }
 
-  document.getElementById(`nombre-${id}`).disabled = true;
-  document.getElementById(`precio-${id}`).disabled = true;
-  document.getElementById(`guardar-${id}`).style.display = 'none'; // Ocultar botón de guardar
-  obtenerProductos();
+        const urlActualizar = `http://localhost:3000/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const response = await fetch(urlActualizar, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                nombre,
+                precio: parseFloat(precio),
+                cantidad: parseInt(cantidad),
+                categoria,
+                sucursal_id: parseInt(config.sucursalId)
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || 'Error al actualizar');
+        }
+
+        alert('Producto actualizado correctamente');
+
+        // Deshabilitar inputs y ocultar botón guardar
+        document.getElementById(`nombre-${id}`).disabled = true;
+        document.getElementById(`precio-${id}`).disabled = true;
+        document.getElementById(`cantidad-${id}`).disabled = true;
+        document.getElementById(`categoria-${id}`).disabled = true;
+        document.getElementById(`guardar-${id}`).style.display = 'none';
+
+        obtenerProductos();
+    } catch (error) {
+        alert(`Error al guardar cambios: ${error.message}`);
+        console.error('Error al guardar cambios:', error);
+    }
 };
 
-// Inicializar
-obtenerProductos();
+// Habilitar edición
+const habilitarEdicion = (id) => {
+    document.getElementById(`nombre-${id}`).disabled = false;
+    document.getElementById(`precio-${id}`).disabled = false;
+    document.getElementById(`cantidad-${id}`).disabled = false;
+    document.getElementById(`categoria-${id}`).disabled = false;
+    document.getElementById(`guardar-${id}`).style.display = 'inline';
+};
+
+// Manejo del formulario de producto
+document.getElementById('producto-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const nombre = document.getElementById('nombre').value.trim();
+    const precio = document.getElementById('precio').value.trim();
+    const cantidad = document.getElementById('cantidad').value.trim();
+    const categoria = document.getElementById('categoria').value;
+
+    if (!nombre || !precio || !cantidad) {
+        alert('Por favor complete todos los campos');
+        return;
+    }
+
+    try {
+        const resultado = await agregarProducto(nombre, precio, cantidad, categoria);
+        console.log('Producto agregado:', resultado);
+
+        alert('Producto agregado correctamente');
+        document.getElementById('producto-form').reset();
+        obtenerProductos();
+    } catch (error) {
+        alert(`Error: ${error.message}`);
+    }
+});
 
 // Logeo y Registro
 document.addEventListener('DOMContentLoaded', function() {

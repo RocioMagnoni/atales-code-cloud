@@ -3,46 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ubicaciones - Atales</title>
+    <title>Sucursales - Atales</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        /* Estilos mejorados */
+        .leaflet-popup-content {
+            text-align: center;
+        }
+        .leaflet-popup-content a {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #e63946;
+            color: white;
+            font-weight: bold;
+            text-decoration: none;
+            border-radius: 4px;
+        }
+        .leaflet-popup-content a:hover {
+            background-color: #c1121f;
+        }
+        #sucursal-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            display: none;
+        }
+        #sucursal-info h3 {
+            margin-top: 0;
+            color: #2a4365;
+        }
+        #ir-crud {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #2a4365;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        #ir-crud:hover {
+            background-color: #1e3a8a;
+        }
+    </style>
 </head>
 <body>
     <header>
         <div class="logo">
             <img src="assets/img/images.png" alt="Logo Atales">
-            <h1>Atales - Ubicaciones</h1>
+            <h1>Atales - Sucursales</h1>
         </div>
     </header>
     
     <main>
-        <h2>Lista de Ubicaciones</h2>
-        <p>A continuación, se presentan algunas ubicaciones importantes:</p>
+        <h2>Nuestras Sucursales</h2>
+        <p>Selecciona una sucursal en el mapa para ver sus detalles:</p>
         
         <div class="botones">
             <a href="index.html" class="boton">Volver al Inicio</a>
         </div>
         
-        <ol>
-            <li>
-                <a href="https://www.google.com/maps/dir//Paso+de+los+Andes+1794,+M5502+Mendoza" target="_blank" rel="noopener noreferrer">
-                    Paso de los Andes 1794, M5502 Mendoza
-                </a>
-            </li>
-            <li>
-                <a href="https://www.google.com/maps/dir//Talcahuano+2845,+M5547+Godoy+Cruz,+Mendoza" target="_blank" rel="noopener noreferrer">
-                    Talcahuano 2845, M5547 Godoy Cruz, Mendoza
-                </a>
-            </li>
-            <li>
-                <a href="https://www.google.com/maps/dir//Elpidio+Gonz%C3%A1lez+2250,+M5500+Guaymall%C3%A9n,+Mendoza" target="_blank" rel="noopener noreferrer">
-                    Elpidio González 2250, M5500 Guaymallén, Mendoza
-                </a>
-            </li>
-        </ol>
-
+        <!-- Contenedor para información de sucursal seleccionada -->
+        <div id="sucursal-info">
+            <h3 id="sucursal-nombre"></h3>
+            <p id="sucursal-direccion"></p>
+            <a id="ir-crud" href="#">Administrar Productos</a>
+        </div>
+        
         <!-- Contenedor para el mapa -->
-        <div id="map" aria-label="Mapa de ubicaciones de Atales"></div>
+        <div id="map" aria-label="Mapa de sucursales de Atales"></div>
     </main>
 
     <footer>
@@ -62,19 +94,62 @@
         }).addTo(map);
 
         // Definir ubicaciones de las sucursales
-        var locations = [
-            { lat: -32.8792397, lng: -68.8572598, title: "ATAL Autoservicio (Sucursal Ciudad)" },
-            { lat: -32.901485, lng: -68.8776196, title: "ATAL Autoservicio" },
-            { lat: -32.9200056, lng: -68.8179595, title: "ATAL Autoservicio (Sucursal Guaymallén)" }
+        var sucursales = [
+            { 
+                id: 1,
+                lat: -32.8792397, 
+                lng: -68.8572598, 
+                nombre: "ATAL Centro",
+                direccion: "Paso de los Andes 1794, Mendoza"
+            },
+            { 
+                id: 2,
+                lat: -32.901485, 
+                lng: -68.8776196, 
+                nombre: "ATAL Godoy Cruz",
+                direccion: "Talcahuano 2845, Godoy Cruz"
+            },
+            { 
+                id: 3,
+                lat: -32.9200056, 
+                lng: -68.8179595, 
+                nombre: "ATAL Guaymallén",
+                direccion: "Elpidio González 2250, Guaymallén"
+            }
         ];
 
+        // Elementos del DOM
+        const sucursalInfo = document.getElementById('sucursal-info');
+        const sucursalNombre = document.getElementById('sucursal-nombre');
+        const sucursalDireccion = document.getElementById('sucursal-direccion');
+        const irCrud = document.getElementById('ir-crud');
+
+        // Variable para almacenar la sucursal seleccionada
+        let sucursalSeleccionada = null;
+
         // Agregar marcadores al mapa
-        locations.forEach(location => {
-            L.marker([location.lat, location.lng]).addTo(map)
-                .bindPopup(`<b>${location.title}</b>`)
-                .openPopup();
+        sucursales.forEach(sucursal => {
+            const marker = L.marker([sucursal.lat, sucursal.lng]).addTo(map)
+                .bindPopup(`
+                    <b>${sucursal.nombre}</b><br>
+                    ${sucursal.direccion}
+                `);
+            
+            // Mostrar información al hacer clic
+            marker.on('click', () => {
+                sucursalSeleccionada = sucursal;
+                sucursalNombre.textContent = sucursal.nombre;
+                sucursalDireccion.textContent = sucursal.direccion;
+                irCrud.href = `crud.html?sucursal=${sucursal.id}`;
+                sucursalInfo.style.display = 'block';
+            });
+        });
+
+        // Quitar selección al hacer clic en el mapa
+        map.on('click', () => {
+            sucursalInfo.style.display = 'none';
+            sucursalSeleccionada = null;
         });
     </script>
-
 </body>
 </html>
