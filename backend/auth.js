@@ -1,38 +1,43 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const db = require('../database'); 
+const db = require('../database');
 const router = express.Router();
-const SECRET_KEY = 'secreto_super_seguro';
 
-// Registro de usuario 
+const SECRET_KEY = process.env.SECRET_KEY || 'secreto_super_seguro';
+
+// Registro
 router.post('/register', async (req, res) => {
     const { email, username, password } = req.body;
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Verificar si el email ya está registrado
-    db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
-        if (user) {
-            return res.status(400).json({ error: 'El correo electrónico ya está registrado' });
+    try {
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await db.query('INSERT INTO users (email, username, password) VALUES (?, ?, ?)', 
+                      [email, username, hashedPassword]);
+        res.json({ message: 'Registro exitoso' });
+    } catch (err) {
+        if (err.code === 'ER_DUP_ENTRY') {
+            return res.status(400).json({ error: 'El email/usuario ya existe' });
         }
-
-        db.run('INSERT INTO users (email, username, password) VALUES (?, ?, ?)', [email, username, hashedPassword], (err) => {
-            if (err) return res.status(400).json({ error: 'Error al registrar usuario' });
-            res.json({ message: 'Registro exitoso' });
-        });
-    });
+        res.status(500).json({ error: 'Error en el servidor' });
+    }
 });
 
-// Login de usuario
-router.post('/login', (req, res) => {
+// Login
+router.post('/login', async (req, res) => {
     const { email, password } = req.body;
-    db.get('SELECT * FROM users WHERE email = ?', [email], async (err, user) => {
+    try {
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        const user = users[0];
+        
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
-        const token = jwt.sign({ id: user.id, email: user.email }, SECRET_KEY, { expiresIn: '1h' });
-        res.json({ token });
-    });
+        
+        const token = jwt.sign({ id: user.id, email }, SECRET_KEY, { expiresIn: '1h' });
+        res.json({ token, username: user.username });
+    } catch (err) {
+        res.status(500).json({ error: 'Error en el servidor' });
+    }
 });
 
 module.exports = router;

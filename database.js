@@ -1,71 +1,54 @@
-const sqlite3 = require('sqlite3').verbose();
+const mysql = require('mysql2/promise');
+require('dotenv').config();
 
-const db = new sqlite3.Database('./productos.db', (err) => {
-  if (err) {
-    console.error('Error al conectar con SQLite:', err.message);
-  } else {
-    console.log('Conectado a la base de datos SQLite');
+// Configuración de la conexión MySQL usando variables de entorno
+const pool = mysql.createPool({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'atalesdb',
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+// Función para inicializar la base de datos
+async function initializeDB() {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    
+    // Crear tabla de productos
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS productos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(255) NOT NULL,
+        precio DECIMAL(10, 2) NOT NULL
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    
+    // Crear tabla de usuarios
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        username VARCHAR(255) UNIQUE NOT NULL,
+        password VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        reset_token VARCHAR(255) DEFAULT NULL,
+        reset_token_expiry BIGINT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+    
+    console.log('✅ Tablas creadas exitosamente');
+  } catch (err) {
+    console.error('❌ Error al inicializar la base de datos:', err);
+  } finally {
+    if (connection) connection.release();
   }
-});
+}
 
-// Crear la tabla de productos si no existe
-db.serialize(() => {
-  db.run(`
-    CREATE TABLE IF NOT EXISTS productos (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre TEXT NOT NULL,
-      precio REAL NOT NULL
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error al crear la tabla de productos:', err.message);
-    }
-  });
+initializeDB();
 
-  // Crear la tabla de usuarios si no existe
-  db.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      username TEXT UNIQUE NOT NULL,
-      password TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL
-    )
-  `, (err) => {
-    if (err) {
-      console.error('Error al crear la tabla de usuarios:', err.message);
-    }
-  });
-
-  // Verificar si las columnas reset_token y reset_token_expiry existen antes de añadirlas
-  db.all("PRAGMA table_info(users);", (err, columns) => {
-    if (err) {
-      console.error('Error al obtener la información de las columnas:', err.message);
-    } else {
-      const columnNames = columns.map(col => col.name);
-
-      // Añadir reset_token si no existe
-      if (!columnNames.includes('reset_token')) {
-        db.run(`
-          ALTER TABLE users ADD COLUMN reset_token TEXT;
-        `, (err) => {
-          if (err) {
-            console.error('Error al agregar la columna reset_token:', err.message);
-          }
-        });
-      }
-
-      // Añadir reset_token_expiry si no existe
-      if (!columnNames.includes('reset_token_expiry')) {
-        db.run(`
-          ALTER TABLE users ADD COLUMN reset_token_expiry INTEGER;
-        `, (err) => {
-          if (err) {
-            console.error('Error al agregar la columna reset_token_expiry:', err.message);
-          }
-        });
-      }
-    }
-  });
-});
-
-module.exports = db;
+module.exports = pool;

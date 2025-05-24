@@ -55,26 +55,41 @@ if (formulario) {
     const nombre = document.getElementById('nombre').value;
     const precio = document.getElementById('precio').value;
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, precio }),
-    });
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
+        },
+        body: JSON.stringify({ nombre, precio }),
+      });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      alert(`Error al agregar el producto: ${errorData.message}`);
-    } else {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || 'Error al agregar producto');
+      
       obtenerProductos();
       e.target.reset();
+    } catch (error) {
+      alert(error.message);
     }
   });
 }
 
 // Eliminar producto
 const eliminarProducto = async (id) => {
-  await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
-  obtenerProductos();
+  try {
+    const response = await fetch(`${apiUrl}/${id}`, { 
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+    if (!response.ok) throw new Error('Error al eliminar');
+    obtenerProductos();
+  } catch (error) {
+    alert(error.message);
+  }
 };
 
 // Habilitar edición
