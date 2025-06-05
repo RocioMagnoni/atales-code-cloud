@@ -1,3 +1,10 @@
+// Verificar que la configuración esté disponible
+if (typeof API_BASE_URL === 'undefined') {
+    console.error('❌ ERROR: config.js no se ha cargado correctamente');
+    alert('Error de configuración. Recarga la página.');
+}
+
+
 // Configuración compartida
 const config = window.ATALES_CONFIG || {
     sucursalId: '1',
@@ -8,7 +15,7 @@ const config = window.ATALES_CONFIG || {
     }
 };
 
-const apiUrl = `http://localhost:3000/api/productos?sucursal=${config.sucursalId}`;
+const apiUrl = `${API_BASE_URL}/api/productos?sucursal=${config.sucursalId}`;
 console.log('API configurada:', apiUrl);
 
 // Mostrar información de la sucursal actual
@@ -146,7 +153,7 @@ const eliminarProducto = async (id) => {
             return;
         }
 
-        const urlEliminar = `http://localhost:3000/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const urlEliminar = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
         const response = await fetch(urlEliminar, {
             method: 'DELETE',
             headers: {
@@ -182,7 +189,7 @@ const guardarCambios = async (id) => {
             return;
         }
 
-        const urlActualizar = `http://localhost:3000/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const urlActualizar = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
         const response = await fetch(urlActualizar, {
             method: 'PUT',
             headers: {
@@ -267,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
           console.log('Intentando iniciar sesión con:', email, password); // Mensaje de depuración
 
-          const response = await fetch('http://localhost:3000/auth/login', {
+          const response = await fetch('${API_BASE_URL}/auth/login', {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
@@ -307,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('Intentando registrar usuario:', username, email); // Mensaje de depuración
 
-        const response = await fetch('http://localhost:3000/auth/register', {
+        const response = await fetch('${API_BASE_URL}/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -338,7 +345,7 @@ if (resetPasswordForm) {
 
         console.log('Solicitando restablecimiento de contraseña para:', email); // Mensaje de depuración
 
-        const response = await fetch('http://localhost:3000/reset/reset-password', {  
+        const response = await fetch('${API_BASE_URL}/reset/reset-password', {  
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -358,54 +365,385 @@ if (resetPasswordForm) {
     });
 }
 
-// Lógica para restablecer la contraseña con un token
-document.addEventListener('DOMContentLoaded', function () {
-  const newPasswordForm = document.getElementById('new-password-form');
+// reset-password-script.js - Versión completa y segura
+document.addEventListener('DOMContentLoaded', function() {
+    // Verificar que estamos en la página correcta
+    const form = document.getElementById('new-password-form');
+    if (!form) return;
 
-  if (newPasswordForm) {
-      newPasswordForm.addEventListener('submit', async function (event) {
-          event.preventDefault(); // Evitar recarga de página
+    // Elementos del formulario
+    const tokenInput = document.getElementById('reset-token');
+    const newPasswordInput = document.getElementById('new-password');
+    const confirmPasswordInput = document.getElementById('confirm-password');
 
-          const newPassword = document.getElementById('new-password').value;
-          const confirmPassword = document.getElementById('confirm-password').value;
+    // Obtener token de la URL
+    const getToken = () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('token') || window.location.pathname.split('/').pop();
+    };
 
-          if (newPassword !== confirmPassword) {
-              alert('Las contraseñas no coinciden');
-              return;
-          }
+    // Validar contraseñas
+    const validate = () => {
+        if (newPasswordInput.value !== confirmPasswordInput.value) {
+            alert('Las contraseñas no coinciden');
+            return false;
+        }
+        return true;
+    };
 
-          // Obtener el token desde la URL
-          const pathParts = window.location.pathname.split('/');
-          const resetToken = pathParts[pathParts.length - 1];
-
-          console.log('Restableciendo la contraseña con el token:', resetToken);
-
-          if (!resetToken) {
-              alert('Token de restablecimiento no encontrado.');
-              return;
-          }
-
-          const response = await fetch('http://localhost:3000/reset/confirm-reset-password', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ resetToken, newPassword })
-          });
-
-          const result = await response.json();
-          console.log('Resultado del restablecimiento:', result);
-
-          if (response.ok) {
-            alert('Contraseña restablecida con éxito');
-            localStorage.removeItem('resetToken');  // Eliminar token almacenado
-            window.location.replace('/login.html');  // Redirigir sin que recuerde la página anterior
-          } else {
-              console.error(`Error: ${result.error || result.message}`);
-              alert(`Error: ${result.error || result.message}`);
-          }
+    // Manejar envío del formulario
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-      });
-  } else {
-      console.log('ℹ️ No se encontró el formulario de restablecimiento. Esto es normal si no estás en la página de restablecimiento.');
-  }
+        if (!validate()) return;
+
+        const token = getToken();
+        if (!token) {
+            alert('Enlace inválido');
+            window.location.href = '/login.html';
+            return;
+        }
+
+        try {
+            const response = await fetch('${API_BASE_URL}/reset/confirm-reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    resetToken: token,
+                    newPassword: newPasswordInput.value
+                })
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                alert('Contraseña actualizada');
+                window.location.href = '/login.html';
+            } else {
+                throw new Error(result.error || 'Error al actualizar');
+            }
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    // Asignar token al cargar
+    const token = getToken();
+    if (token) tokenInput.value = token;
 });
 
+// Para el modal de crud
+
+// Variables globales para el cierre de caja
+let productosVenta = [];
+
+// Función para abrir el modal de cierre de caja
+function abrirCierreCaja() {
+    const modal = document.getElementById('cierre-caja-modal');
+    modal.style.display = 'block';
+    cargarProductosParaVenta();
+}
+
+// Función para cerrar el modal
+function cerrarModal() {
+    const modal = document.getElementById('cierre-caja-modal');
+    modal.style.display = 'none';
+}
+
+// Función para cargar productos en el modal
+async function cargarProductosParaVenta() {
+    try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Por favor, inicia sesión para acceder a esta función.');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Mostrar nombre de sucursal
+        document.getElementById('sucursal-modal').textContent = 
+            config.sucursales[config.sucursalId]?.nombre || `Sucursal ${config.sucursalId}`;
+
+        const res = await fetch(apiUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) throw new Error('Error al cargar productos');
+
+        productosVenta = await res.json();
+        const tbody = document.getElementById('productos-venta');
+        tbody.innerHTML = '';
+
+        if (productosVenta.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="no-productos">No hay productos para mostrar</td></tr>';
+            return;
+        }
+
+        // Función para crear filas (ahora con columna de precio separada)
+        const crearFilaProducto = (prod) => {
+            const precio = typeof prod.precio === 'string' ? parseFloat(prod.precio) : prod.precio;
+            const stock = parseInt(prod.cantidad);
+            
+            const tr = document.createElement('tr');
+            tr.dataset.nombre = prod.nombre.toLowerCase();
+            tr.dataset.categoria = prod.categoria.toLowerCase();
+            tr.dataset.id = prod.id;
+            
+            tr.innerHTML = `
+                <td>${prod.id}</td>
+                <td class="producto-nombre">${prod.nombre}</td> <!-- Nombre solo -->
+                <td class="precio">$${precio.toFixed(2)}</td> <!-- Columna independiente -->
+                <td class="stock">${stock}</td>
+                <td class="categoria">${prod.categoria}</td>
+                <td class="acciones">
+                    <input type="number" 
+                           id="venta-${prod.id}" 
+                           class="input-venta"
+                           min="0" 
+                           max="${stock}" 
+                           value="0"
+                           data-precio="${precio}" 
+                           data-id="${prod.id}"
+                           data-stock="${stock}"
+                           oninput="validarVenta(this)">
+                    <span class="error-venta" id="error-${prod.id}"></span>
+                </td>
+            `;
+            return tr;
+        };
+
+        // Agregar productos
+        productosVenta.forEach(prod => {
+            tbody.appendChild(crearFilaProducto(prod));
+        });
+
+        // Eventos y resumen (sin cambios)
+        document.querySelectorAll('.input-venta').forEach(input => {
+            input.addEventListener('change', actualizarResumenVenta);
+            input.addEventListener('input', function() {
+                const errorSpan = document.getElementById(`error-${this.dataset.id}`);
+                errorSpan.textContent = '';
+            });
+        });
+
+        actualizarResumenVenta();
+
+    } catch (error) {
+        console.error('Error:', error);
+        const tbody = document.getElementById('productos-venta');
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="error-carga"> <!-- Ajustado a 6 columnas -->
+                    Error al cargar productos: ${error.message}
+                    <button onclick="cargarProductosParaVenta()" class="boton-reintentar">Reintentar</button>
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Función auxiliar para validar ventas
+function validarVenta(input) {
+    const cantidad = parseInt(input.value) || 0;
+    const maxStock = parseInt(input.dataset.stock);
+    const errorSpan = document.getElementById(`error-${input.dataset.id}`);
+
+    if (cantidad < 0) {
+        input.value = 0;
+    } else if (cantidad > maxStock) {
+        input.value = maxStock;
+        errorSpan.textContent = `Stock máximo: ${maxStock}`;
+        errorSpan.style.display = 'inline-block';
+        setTimeout(() => errorSpan.style.display = 'none', 3000);
+    }
+}
+
+// Función para actualizar el resumen de ventas
+function actualizarResumenVenta() {
+    let totalProductos = 0;
+    let gananciasTotales = 0;
+
+    productosVenta.forEach(prod => {
+        const input = document.getElementById(`venta-${prod.id}`);
+        if (input) {
+            const cantidad = parseInt(input.value) || 0;
+            totalProductos += cantidad;
+            gananciasTotales += cantidad * prod.precio;
+        }
+    });
+
+    document.getElementById('total-productos').textContent = totalProductos;
+    document.getElementById('ganancias-totales').textContent = gananciasTotales.toFixed(2);
+}
+
+// Función para aplicar las ventas
+async function aplicarVentas() {
+    const ventas = [];
+    let totalProductos = 0;
+    let gananciasTotales = 0;
+    const detalles = [];
+
+    // Calcular totales y preparar detalles
+    productosVenta.forEach(prod => {
+        const input = document.getElementById(`venta-${prod.id}`);
+        if (input && input.value > 0) {
+            const cantidad = parseInt(input.value);
+            const precio = parseFloat(input.dataset.precio);
+            const total = cantidad * precio;
+            
+            ventas.push({ id: prod.id, cantidad });
+            detalles.push({
+                producto_id: prod.id,
+                nombre: prod.nombre,
+                cantidad,
+                precio_unitario: precio,
+                total
+            });
+
+            totalProductos += cantidad;
+            gananciasTotales += total;
+        }
+    });
+
+    if (ventas.length === 0) {
+        alert('No hay productos vendidos para aplicar');
+        return;
+    }
+
+    if (!confirm(`¿Registrar cierre de caja?\n\nProductos: ${totalProductos}\nGanancias: $${gananciasTotales.toFixed(2)}`)) {
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        
+        // 1. Actualizar productos
+        for (const venta of ventas) {
+            await actualizarProducto(venta.id, venta.cantidad, token);
+        }
+
+        // 2. Registrar cierre con detalles
+        const cierreResponse = await fetch('${API_BASE_URL}/api/cierres-caja${sucursalId};', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                sucursal_id: parseInt(config.sucursalId),
+                total_productos: totalProductos,
+                ganancias_totales: gananciasTotales,
+                detalles: detalles
+            })
+        });
+
+        const resultado = await cierreResponse.json();
+        if (resultado.id) {
+            alert(`✅ Cierre registrado correctamente\n\n• ID: ${resultado.id}\n• Sucursal: ${config.sucursales[config.sucursalId]?.nombre}\n• Fecha: ${new Date(resultado.fecha_registro).toLocaleString()}`);
+        } else {
+            alert('✅ Cierre registrado (consulta el historial para ver detalles)');
+        }
+        // Actualizar vista
+        cargarProductosParaVenta();
+        actualizarResumenVenta();
+
+    } catch (error) {
+        console.error('Error:', error);
+        alert(`❌ Error: ${error.message}`);
+    }
+}
+
+async function actualizarProducto(id, cantidadVendida, token) {
+    const url = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
+    const producto = productosVenta.find(p => p.id === id);
+    
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            nombre: producto.nombre,
+            precio: producto.precio,
+            cantidad: producto.cantidad - cantidadVendida,
+            categoria: producto.categoria,
+            sucursal_id: parseInt(config.sucursalId)
+        })
+    });
+
+    if (!response.ok) throw new Error(`Producto ID ${id}`);
+}
+
+function filtrarProductos() {
+    const busqueda = document.getElementById('buscar-producto').value.toLowerCase();
+    const filas = document.querySelectorAll('#productos-venta tr');
+    
+    let resultados = 0;
+    
+    filas.forEach(fila => {
+        // Omitir la fila de "no hay productos"
+        if (fila.cells.length < 2) {
+            fila.style.display = 'none';
+            return;
+        }
+        
+        const nombre = fila.cells[1].textContent.toLowerCase();
+        const categoria = fila.cells[3].textContent.toLowerCase();
+        
+        if (nombre.includes(busqueda) || categoria.includes(busqueda)) {
+            fila.style.display = '';
+            resultados++;
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+    
+    // Mostrar mensaje si no hay resultados
+    const mensajeNoResultados = document.getElementById('no-resultados');
+    if (resultados === 0 && busqueda !== '') {
+        if (!mensajeNoResultados) {
+            const tbody = document.getElementById('productos-venta');
+            const tr = document.createElement('tr');
+            tr.id = 'no-resultados';
+            tr.innerHTML = `<td colspan="5">No se encontraron productos con "${busqueda}"</td>`;
+            tbody.appendChild(tr);
+        }
+    } else if (mensajeNoResultados) {
+        mensajeNoResultados.remove();
+    }
+}
+
+// Event listeners para el filtro
+document.addEventListener('DOMContentLoaded', () => {
+    const buscarInput = document.getElementById('buscar-producto');
+    const limpiarBtn = document.getElementById('limpiar-busqueda');
+    
+    if (buscarInput) {
+        buscarInput.addEventListener('input', filtrarProductos);
+        
+        // Buscar al presionar Enter
+        buscarInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') filtrarProductos();
+        });
+    }
+    
+    if (limpiarBtn) {
+        limpiarBtn.addEventListener('click', () => {
+            buscarInput.value = '';
+            filtrarProductos();
+            buscarInput.focus();
+        });
+    }
+});
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('abrir-cierre-caja')?.addEventListener('click', abrirCierreCaja);
+    document.querySelector('.cerrar-modal')?.addEventListener('click', cerrarModal);
+    document.getElementById('aplicar-ventas')?.addEventListener('click', aplicarVentas);
+    document.getElementById('cancelar-ventas')?.addEventListener('click', cerrarModal);
+    document.getElementById('btn-historial')?.addEventListener('click', () => {
+        window.location.href = `cierres.html?sucursal=${window.ATALES_CONFIG.sucursalId}`;
+    });
+});
