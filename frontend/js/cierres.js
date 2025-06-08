@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Cargar cierres iniciales
     async function cargarCierres(fechaInicio = '', fechaFin = '') {
         try {
-            let url = `${API_BASE_URL}/api/cierres-caja/${sucursalId}`;
+            let url = `${API_BASE_URL}/cierres-caja/${sucursalId}`;
             const params = [];
             if (fechaInicio) params.push(`fechaInicio=${fechaInicio}`);
             if (fechaFin) params.push(`fechaFin=${fechaFin}`);

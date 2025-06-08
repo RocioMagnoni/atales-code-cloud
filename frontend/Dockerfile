@@ -1,9 +1,12 @@
 FROM nginx:alpine
 
-# Copia los archivos estáticos (HTML, CSS, JS, imágenes)
+# Elimina la configuración por defecto
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copia tu configuración personalizada
+COPY nginx.conf /etc/nginx/conf.d
+
+# Copia los archivos estáticos
 COPY . /usr/share/nginx/html
 
-# Puerto de Nginx (80 por defecto)
-EXPOSE 80
-
-# No necesitas CMD, Nginx ya tiene uno por defecto
+EXPOSE 80 443

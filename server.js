@@ -11,6 +11,12 @@ const rest = require('./backend/rest');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Antes de las rutas
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Configuración de Rate Limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -20,7 +26,7 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
-  max: 5,
+  max: 100,
   message: { error: 'Demasiados intentos. Por favor espera 1 minuto.' }
 });
 
@@ -28,7 +34,8 @@ const authLimiter = rateLimit({
 app.use(cors({
   origin: [
     'http://localhost:3000', // para desarrollo local
-    'https://proyecto-atales.onrender.com' // reemplaza por tu dominio real de Render
+    'https://atales.local',
+    'http://192.168.49.2'
   ],
   credentials: true
 }));
@@ -44,8 +51,8 @@ app.use((req, res, next) => {
 // **QUITAMOS el middleware de autenticación** y no usamos `authenticateToken`
 
 // Rutas de autenticación y restablecimiento siguen igual (si querés seguir usándolas)
-app.use('/auth', authLimiter, auth);
-app.use('/reset', authLimiter, rest);
+app.use('/api/auth', authLimiter, auth);
+app.use('/api/reset', authLimiter, rest);
 
 // CRUD Productos SIN protección
 app.post('/api/productos', async (req, res) => {
@@ -250,8 +257,18 @@ app.get('/api/cierres-caja/:sucursalId', async (req, res) => {
     }
 });
 
+// Manejo de errores global
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    success: false,
+    error: 'Error interno del servidor' 
+  });
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log('✅ Endpoints de productos sin autenticación');
 });
+

@@ -15,7 +15,7 @@ const config = window.ATALES_CONFIG || {
     }
 };
 
-const apiUrl = `${API_BASE_URL}/api/productos?sucursal=${config.sucursalId}`;
+const apiUrl = `${window.API_BASE_URL}/productos?sucursal=${config.sucursalId}`;
 console.log('API configurada:', apiUrl);
 
 // Mostrar información de la sucursal actual
@@ -153,7 +153,7 @@ const eliminarProducto = async (id) => {
             return;
         }
 
-        const urlEliminar = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const urlEliminar = `${API_BASE_URL}/productos/${id}?sucursal=${config.sucursalId}`;
         const response = await fetch(urlEliminar, {
             method: 'DELETE',
             headers: {
@@ -189,7 +189,7 @@ const guardarCambios = async (id) => {
             return;
         }
 
-        const urlActualizar = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
+        const urlActualizar = `${API_BASE_URL}/productos/${id}?sucursal=${config.sucursalId}`;
         const response = await fetch(urlActualizar, {
             method: 'PUT',
             headers: {
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
           console.log('Intentando iniciar sesión con:', email, password); // Mensaje de depuración
 
-          const response = await fetch('${API_BASE_URL}/auth/login', {
+          const response = await fetch(`${API_BASE_URL}/auth/login`, {
               method: 'POST',
               headers: {
                   'Content-Type': 'application/json'
@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         console.log('Intentando registrar usuario:', username, email); // Mensaje de depuración
 
-        const response = await fetch('${API_BASE_URL}/auth/register', {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -345,7 +345,7 @@ if (resetPasswordForm) {
 
         console.log('Solicitando restablecimiento de contraseña para:', email); // Mensaje de depuración
 
-        const response = await fetch('${API_BASE_URL}/reset/reset-password', {  
+        const response = await fetch(`${API_BASE_URL}/auth/reset-password`, { 
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch('${API_BASE_URL}/reset/confirm-reset-password', {
+            const response = await fetch(`${API_BASE_URL}/auth/confirm-reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -623,7 +623,7 @@ async function aplicarVentas() {
         }
 
         // 2. Registrar cierre con detalles
-        const cierreResponse = await fetch('${API_BASE_URL}/api/cierres-caja${sucursalId};', {
+        const cierreResponse = await fetch(`${API_BASE_URL}/cierres-caja?sucursal=${config.sucursalId}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -654,7 +654,7 @@ async function aplicarVentas() {
 }
 
 async function actualizarProducto(id, cantidadVendida, token) {
-    const url = `${API_BASE_URL}/api/productos/${id}?sucursal=${config.sucursalId}`;
+    const url = `${API_BASE_URL}/productos/${id}?sucursal=${config.sucursalId}`;
     const producto = productosVenta.find(p => p.id === id);
     
     const response = await fetch(url, {
