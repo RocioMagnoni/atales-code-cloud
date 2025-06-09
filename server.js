@@ -21,13 +21,15 @@ app.use((req, res, next) => {
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 100,
-  message: { error: 'Demasiadas solicitudes. Por favor intenta nuevamente más tarde.' }
+  message: { error: 'Demasiadas solicitudes. Por favor intenta nuevamente más tarde.' },
+  validate: { trustProxy: false }
 });
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
   max: 100,
-  message: { error: 'Demasiados intentos. Por favor espera 1 minuto.' }
+  message: { error: 'Demasiados intentos. Por favor espera 1 minuto.' },
+  validate: { trustProxy: false }
 });
 
 // Middleware

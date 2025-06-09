@@ -287,7 +287,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
           if (response.ok) {
               localStorage.setItem('token', result.token); // Guardar el token
-              alert('Login exitoso');
               window.location.href = 'index.html'; // Redirigir a la página principal
           } else {
               alert(`Error: ${result.error || result.message}`); // Mostrar mensaje de error
@@ -345,7 +344,7 @@ if (resetPasswordForm) {
 
         console.log('Solicitando restablecimiento de contraseña para:', email); // Mensaje de depuración
 
-        const response = await fetch(`${API_BASE_URL}/auth/reset-password`, { 
+        const response = await fetch(`${API_BASE_URL}/reset/reset-password`, { 
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -405,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/auth/confirm-reset-password`, {
+            const response = await fetch(`${API_BASE_URL}/reset/confirm-reset-password`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
