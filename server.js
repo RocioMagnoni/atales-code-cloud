@@ -11,30 +11,55 @@ const rest = require('./backend/rest');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', true);// Necesario porque el tráfico pasa por el Ingress (Nginx)
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
+// Antes de las rutas
+app.use((req, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
+
 // Configuración de Rate Limiting
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
   max: 100,
-  message: { error: 'Demasiadas solicitudes. Por favor intenta nuevamente más tarde.' }
+  message: { error: 'Demasiadas solicitudes. Por favor intenta nuevamente más tarde.' },
+  validate: { trustProxy: false }
 });
 
 const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
-  max: 5,
-  message: { error: 'Demasiados intentos. Por favor espera 1 minuto.' }
+  max: 100,
+  message: { error: 'Demasiados intentos. Por favor espera 1 minuto.' },
+  validate: { trustProxy: false }
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:3000', // para desarrollo local
+    'https://atales.local',
+    'http://192.168.49.2'
+  ],
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'frontend')));
 app.use(generalLimiter);
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    next();
+});
+
 
 // **QUITAMOS el middleware de autenticación** y no usamos `authenticateToken`
 
 // Rutas de autenticación y restablecimiento siguen igual (si querés seguir usándolas)
-app.use('/auth', authLimiter, auth);
-app.use('/reset', authLimiter, rest);
+app.use('/api/auth', authLimiter, auth);
+app.use('/api/reset', authLimiter, rest);
 
 // CRUD Productos SIN protección
 app.post('/api/productos', async (req, res) => {
@@ -154,8 +179,103 @@ app.get('/api/categorias', async (req, res) => {
   }
 });
 
+// Registrar nuevo cierre de caja
+app.post('/api/cierres-caja', async (req, res) => {
+    try {
+        const { sucursal_id, total_productos, ganancias_totales, detalles } = req.body;
+
+        const [result] = await db.query(
+            'INSERT INTO cierres_caja SET ?',
+            {
+                sucursal_id,
+                total_productos,
+                ganancias_totales,
+                detalles: detalles ? JSON.stringify(detalles) : null, // <--- GUARDA LOS DETALLES
+                fecha_registro: new Date()
+            }
+        );
+
+        // Devuelve el ID correctamente
+        const [nuevoCierre] = await db.query(
+            'SELECT * FROM cierres_caja WHERE id = ?',
+            [result.insertId]
+        );
+
+        res.status(201).json(nuevoCierre[0]);
+
+    } catch (err) {
+        console.error('Error:', err);
+        res.status(500).json({ error: 'Error al registrar cierre' });
+    }
+});
+
+// Obtener historial de cierres por sucursal
+app.get('/api/cierres-caja/:sucursalId', async (req, res) => {
+    try {
+        const { sucursalId } = req.params;
+        const { fechaInicio, fechaFin } = req.query;
+        
+        let query = `
+            SELECT 
+                c.id,
+                c.sucursal_id,
+                CAST(c.total_productos AS SIGNED) as total_productos,
+                CAST(c.ganancias_totales AS DECIMAL(12,2)) as ganancias_totales,
+                c.fecha_registro,
+                s.nombre as sucursal,
+                c.detalles
+            FROM cierres_caja c
+            JOIN sucursales s ON c.sucursal_id = s.id
+            WHERE c.sucursal_id = ?
+        `;
+        const params = [sucursalId];
+
+        if (fechaInicio) {
+            query += ' AND DATE(c.fecha_registro) >= ?';
+            params.push(fechaInicio);
+        }
+        if (fechaFin) {
+            query += ' AND DATE(c.fecha_registro) <= ?';
+            params.push(fechaFin);
+        }
+
+        query += ' ORDER BY c.fecha_registro DESC';
+
+        const [rows] = await db.query(query, params);
+
+        // Parsear detalles si es string
+        for (const row of rows) {
+            if (row.detalles && typeof row.detalles === 'string') {
+                try {
+                    row.detalles = JSON.parse(row.detalles);
+                } catch (e) {
+                    row.detalles = [];
+                }
+            } else if (!row.detalles) {
+                row.detalles = [];
+            }
+        }
+
+        res.json(rows);
+
+    } catch (err) {
+        console.error('Error en GET /api/cierres-caja:', err);
+        res.status(500).json({ error: 'Error al obtener cierres' });
+    }
+});
+
+// Manejo de errores global
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ 
+    success: false,
+    error: 'Error interno del servidor' 
+  });
+});
+
 // Iniciar servidor
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   console.log('✅ Endpoints de productos sin autenticación');
 });
+
