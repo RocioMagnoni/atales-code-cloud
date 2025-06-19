@@ -11,6 +11,11 @@ const rest = require('./backend/rest');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', true);// Necesario porque el tráfico pasa por el Ingress (Nginx)
+
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'healthy' });
+});
 // Antes de las rutas
 app.use((req, res, next) => {
   res.setHeader('Content-Type', 'application/json');
