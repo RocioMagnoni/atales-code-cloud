@@ -1,6 +1,6 @@
 const API_CONFIG = {
   getBaseURL: function() {
-    if (window.location.protocol === 'https:') {
+    if (window.location.protocol === 'http:') {
       return '/api';
     }
     // Para desarrollo local
