@@ -21,9 +21,11 @@ jobs:
 
     - name: Obtener mensaje del último commit
       id: commit
-      run: echo "mensaje_commit=$(git log -1 --pretty=%B)" >> $GITHUB_OUTPUT
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=%B)
+        echo "mensaje_commit=$COMMIT_MSG" >> $GITHUB_OUTPUT
 
-    - name: Detectar overlay
+    - name: Detectar overlay según mensaje del commit
       id: overlay
       run: |
         MSG="${{ steps.commit.outputs.mensaje_commit }}"
@@ -35,19 +37,21 @@ jobs:
           echo "overlay=prod" >> $GITHUB_OUTPUT
         else
           echo "overlay=none" >> $GITHUB_OUTPUT
-	fi
+        fi
 
-    - name: Cancelar si no es commit de deploy
+    - name: Cancelar si no es un commit de deploy
       if: steps.overlay.outputs.overlay == 'none'
-      run: exit 0
+      run: |
+        echo "No es un commit de deploy. Abortando workflow."
+        exit 0
 
-    - name: Login Docker Hub
+    - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        username: ${{ secrets.DOCKERHUB_USER }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    - name: Definir TAG
+    - name: Definir tag de la imagen
       run: echo "IMAGE_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
     - name: Build y push backend
@@ -67,9 +71,10 @@ jobs:
         token: ${{ secrets.K8S_REPO_PAT }}
         path: atales-k8s-cloud
 
-    - name: Parchar manifiestos con nuevo tag
+    - name: Parchar deployment con nuevo tag
       run: |
         OVERLAY=${{ steps.overlay.outputs.overlay }}
+        echo "Actualizando deployments con tag $IMAGE_TAG"
         sed -i "s|image: $BACKEND_IMAGE:.*|image: $BACKEND_IMAGE:$IMAGE_TAG|g" atales-k8s-cloud/overlays/$OVERLAY/patch-backend-deployment.yaml
         sed -i "s|image: $FRONTEND_IMAGE:.*|image: $FRONTEND_IMAGE:$IMAGE_TAG|g" atales-k8s-cloud/overlays/$OVERLAY/patch-frontend-deployment.yaml
 
@@ -81,3 +86,4 @@ jobs:
         git add overlays/${{ steps.overlay.outputs.overlay }}/*.yaml
         git commit -m "ci: patch $IMAGE_TAG para ${{ steps.overlay.outputs.overlay }}" || echo "Nada para commitear"
         git push
+
