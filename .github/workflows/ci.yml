@@ -56,7 +56,7 @@ jobs:
 
     - name: Build y push backend
       run: |
-        docker build -t $BACKEND_IMAGE:$IMAGE_TAG ./backend
+        docker build -t $BACKEND_IMAGE:$IMAGE_TAG -f Dockerfile .
         docker push $BACKEND_IMAGE:$IMAGE_TAG
 
     - name: Build y push frontend
