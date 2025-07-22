@@ -35,6 +35,7 @@ jobs:
           echo "overlay=prod" >> $GITHUB_OUTPUT
         else
           echo "overlay=none" >> $GITHUB_OUTPUT
+	fi
 
     - name: Cancelar si no es commit de deploy
       if: steps.overlay.outputs.overlay == 'none'
