@@ -5,7 +5,8 @@ on:
     branches:
       - main #<---cambiar para produccion a main
     paths:
-      - 'backend/**'
+      - 'Dockerfile'        # ahora detecta cambios en el Dockerfile raíz
+      - 'backend/**'        # también si cambias algo en backend
 
 env:
   IMAGE_NAME: rociomagnoni/atales-backend1 #usuariodockerhub/nombreProyecto
@@ -62,7 +63,7 @@ jobs:
 
       - name: Build & Push Docker Image
         run: |
-          docker build -t $IMAGE_NAME:$IMAGE_TAG ./backend #<---modificar aca en todos los ci
+          docker build -t $IMAGE_NAME:$IMAGE_TAG . -f Dockerfile #<---modificar aca en todos los ci
           docker push $IMAGE_NAME:$IMAGE_TAG
 
       - name: Clonar repo de manifiestos (infra)
