@@ -78,7 +78,7 @@ jobs:
           PATCH_FILE="atales-k8s-cloud/overlays/${{ steps.overlay.outputs.overlay }}/patch-frontend-deployment.yaml"   # <- corregido el path
 
           echo "Actualizando $PATCH_FILE con tag $IMAGE_TAG"
-          sed -i "s|image: .*/atales-frontend:.*|image: $IMAGE_NAME:$IMAGE_TAG|g" "$PATCH_FILE"    # <- corregido el nombre de imagen en el sed
+          sed -i "s|image: .*/atales-frontend1:.*|image: $IMAGE_NAME:$IMAGE_TAG|g" "$PATCH_FILE"    # <- corregido el nombre de imagen en el sed
 
       - name: Commit & Push de los manifiestos parchados
         run: |
