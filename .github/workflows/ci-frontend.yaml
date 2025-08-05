@@ -1,0 +1,90 @@
+name: deploy-frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+
+env:
+  IMAGE_NAME: rociomagnoni/atales-frontend1 #usuariodockerhub/nombreProyecto
+  MANIFESTS_REPO: RocioMagnoni/atales-k8s-cloud  #aca declaramos el repositorio donde vamos a guardar los manifiestos
+
+jobs:
+  build-publish-patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código fuente
+        uses: actions/checkout@v4
+
+      - name: Obtener mensaje del último commit
+        id: commit
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "mensaje_commit=$COMMIT_MSG" >> $GITHUB_OUTPUT
+
+      - name: Detectar overlay según mensaje del commit
+        id: overlay
+        run: |
+          MSG="${{ steps.commit.outputs.mensaje_commit }}"
+          if [[ "$MSG" == *"[deploy-dev]"* ]]; then
+            echo "overlay=dev" >> $GITHUB_OUTPUT
+          elif [[ "$MSG" == *"[deploy-stg]"* ]]; then
+            echo "overlay=stg" >> $GITHUB_OUTPUT
+          elif [[ "$MSG" == *"[deploy-prod]"* && "$MSG" == *"[approved]"* ]]; then
+            echo "overlay=prod" >> $GITHUB_OUTPUT
+          else
+            echo "overlay=none" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Cancelar si no es un commit de deploy
+        if: steps.overlay.outputs.overlay == 'none'
+        run: |
+          echo "No es un commit de deploy. Abortando workflow."
+          exit 0
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USER }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # --- CAMBIO: Definir tag completo con ambiente + sha corto ---
+      - name: Definir tag completo de la imagen con ambiente + sha corto
+        run: |
+          SHORT_SHA=${GITHUB_SHA::7}
+          OVERLAY=${{ steps.overlay.outputs.overlay }}
+          IMAGE_TAG="${OVERLAY}-${SHORT_SHA}"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "TAG completo definido: $IMAGE_TAG"
+
+      - name: Build & Push Docker Image
+        run: |
+          docker build -t $IMAGE_NAME:$IMAGE_TAG ./frontend #<---modificar aca en todos los ci
+          docker push $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Clonar repo de manifiestos (infra)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MANIFESTS_REPO }}
+          token: ${{ secrets.K8S_REPO_PAT }}
+          path: atales-k8s-cloud    # <- Cambié este path para que coincida con el nuevo nombre
+          ref: main   # <- especificás explícitamente la rama
+          
+      - name: Parchar el deployment con el nuevo tag
+        run: |
+          PATCH_FILE="atales-k8s-cloud/overlays/${{ steps.overlay.outputs.overlay }}/patch-frontend-deployment.yaml"   # <- corregido el path
+
+          echo "Actualizando $PATCH_FILE con tag $IMAGE_TAG"
+          sed -i "s|image: .*/atales-frontend:.*|image: $IMAGE_NAME:$IMAGE_TAG|g" "$PATCH_FILE"    # <- corregido el nombre de imagen en el sed
+
+      - name: Commit & Push de los manifiestos parchados
+        run: |
+          cd atales-k8s-cloud   
+          git config user.email "ci@github.com"
+          git config user.name "GitHub Actions"
+          git add overlays/${{ steps.overlay.outputs.overlay }}/patch-frontend-deployment.yaml
+          git commit -m "ci: patch image tag to $IMAGE_TAG for ${{ steps.overlay.outputs.overlay }}" || echo "Sin cambios para commitear"
+          git push
