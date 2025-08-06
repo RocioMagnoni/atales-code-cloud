@@ -3,7 +3,7 @@ require('dotenv').config();
 
 // ✅ Configuración para Kubernetes (usando variables de entorno)
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'mysql-service'
+  host: process.env.DB_HOST || 'mysql-service',
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
@@ -145,5 +145,6 @@ async function checkConnection() {
 checkConnection();
 
 module.exports = pool;
+
 
 
