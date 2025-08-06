@@ -6,14 +6,11 @@ const pool = mysql.createPool({
   host: process.env.DB_HOST || 'mysql-service',
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
+  database: process.env.DB_NAME || 'atalesdb',
   port: 3306,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0,
-  acquireTimeout: 60000,
-  timeout: 60000,
-  reconnect: true
+  queueLimit: 0
 });
 
 // Función para inicializar la base de datos
@@ -145,6 +142,7 @@ async function checkConnection() {
 checkConnection();
 
 module.exports = pool;
+
 
 
 
