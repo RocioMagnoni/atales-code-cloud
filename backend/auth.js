@@ -5,7 +5,7 @@ const db = require('../database');
 const router = express.Router();
 const SECRET_KEY = process.env.SECRET_KEY || 'secreto_super_seguro';
 
-// Middleware para verificar token
+// Middleware para verificar tokens
 const verifyToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -93,4 +93,5 @@ router.get('/verify', verifyToken, (req, res) => {
 
 module.exports = router;
 //commit dev 
+
 //commit dev 2
